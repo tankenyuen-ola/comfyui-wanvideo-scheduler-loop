@@ -6,10 +6,13 @@ A custom node for looping through WanVideo schedulers in ComfyUI
 import random
 import sys
 import os
+from .scheduler_list_getter import get_wanvideo_scheduler_list
 
 # WanVideo scheduler list from ComfyUI-WanVideoWrapper
 # This is the exact list from wanvideo/schedulers/__init__.py
-WANVIDEO_SCHEDULERS = [
+
+#  WanVideo scheduler fallback list
+WANVIDEO_FALLBACK_SCHEDULERS = [
     "unipc", "unipc/beta",
     "dpm++", "dpm++/beta",
     "dpm++_sde", "dpm++_sde/beta",
@@ -23,6 +26,15 @@ WANVIDEO_SCHEDULERS = [
     "flowmatch_pusa",
     "multitalk"
 ]
+
+# WanVideo schedulers, from ComfyUI-WanVideoWrapper
+WANVIDEOWRAPPER_SCHEDULERS = get_wanvideo_scheduler_list()
+
+if WANVIDEOWRAPPER_SCHEDULERS:
+    WANVIDEO_SCHEDULERS = WANVIDEOWRAPPER_SCHEDULERS
+    print("WanVideoWrapper schedulers loaded successfully")
+else:
+    WANVIDEO_SCHEDULERS = WANVIDEO_FALLBACK_SCHEDULERS
 
 # Try to import WanVideo schedulers to verify they're available
 try:
@@ -50,59 +62,64 @@ except Exception as e:
     print(f"Note: Could not verify WanVideoWrapper installation: {e}")
     print("Schedulers will still work if WanVideoWrapper is properly installed.")
 
-class WanVideoSchedulerSelector:
-    """
-    A node that allows looping through WanVideo schedulers with different modes:
-    - select: manually select a scheduler
-    - seed: use a seed to randomly select a scheduler
-    - index: use an index to cycle through schedulers
-    """
+
+# class WanVideoSchedulerSelector:
+#     """
+#     A node that allows looping through WanVideo schedulers with different modes:
+#     - select: manually select a scheduler
+#     - seed: use a seed to randomly select a scheduler
+#     - index: use an index to cycle through schedulers
+#     """
     
-    RETURN_TYPES = (WANVIDEO_SCHEDULERS, "STRING",)
-    RETURN_NAMES = ("scheduler", "scheduler_name",)
-    FUNCTION = "get_scheduler"
-    CATEGORY = "WanVideo/Schedulers"
+#     RETURN_TYPES = (WANVIDEO_SCHEDULERS, "STRING",)
+#     RETURN_NAMES = ("scheduler", "scheduler_name",)
+#     FUNCTION = "get_scheduler"
+#     CATEGORY = "WanVideo/Schedulers"
 
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "scheduler": (WANVIDEO_SCHEDULERS,),
-                "mode": (["select", "seed", "index"],),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                "index": ("INT", {"default": 0, "min": 0, "max": len(WANVIDEO_SCHEDULERS)-1}),
-            }
-        }
+#     @classmethod
+#     def INPUT_TYPES(cls):
+#         return {
+#             "required": {
+#                 "scheduler": (WANVIDEO_SCHEDULERS,),
+#                 "mode": (["select", "seed", "index"],),
+#                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+#                 "index": ("INT", {"default": 0, "min": 0, "max": len(WANVIDEO_SCHEDULERS)-1}),
+#             }
+#         }
 
-    def get_scheduler(self, scheduler, mode, seed, index):
-        """
-        Get scheduler based on the selected mode
-        Returns the scheduler name as a string for WanVideo nodes
-        """
-        if mode == "select":
-            # Return the manually selected scheduler
-            return (scheduler, scheduler)
+#     def get_scheduler(self, scheduler, mode, seed, index):
+#         """
+#         Get scheduler based on the selected mode
+#         Returns the scheduler name as a string for WanVideo nodes
+#         """
+#         if mode == "select":
+#             # Return the manually selected scheduler
+#             return (scheduler, scheduler)
         
-        elif mode == "seed":
-            # Use seed to randomly select a scheduler
-            random.seed(seed)
-            selected_scheduler = random.choice(WANVIDEO_SCHEDULERS)
-            return (selected_scheduler, selected_scheduler)
+#         elif mode == "seed":
+#             # Use seed to randomly select a scheduler
+#             random.seed(seed)
+#             selected_scheduler = random.choice(WANVIDEO_SCHEDULERS)
+#             return (selected_scheduler, selected_scheduler)
         
-        elif mode == "index":
-            # Use index to cycle through schedulers
-            selected_scheduler = WANVIDEO_SCHEDULERS[index % len(WANVIDEO_SCHEDULERS)]
-            return (selected_scheduler, selected_scheduler)
+#         elif mode == "index":
+#             # Use index to cycle through schedulers
+#             selected_scheduler = WANVIDEO_SCHEDULERS[index % len(WANVIDEO_SCHEDULERS)]
+#             return (selected_scheduler, selected_scheduler)
         
-        # Fallback
-        return (scheduler, scheduler)
+#         # Fallback
+#         return (scheduler, scheduler)
 
 
 class WanVideoSchedulerLoop:
     """
-    A more advanced node that provides additional looping functionality
-    with step control and batch processing
+    A more advanced node that provides automatic looping functionality
+    with internal state management - no manual step increment needed
     """
+    
+    # Global counters for different modes
+    _global_counters = {"sequential": 0, "ping_pong": 0, "random": 0}
+    _last_execution_ids = {"sequential": None, "ping_pong": None, "random": None}
     
     RETURN_TYPES = (WANVIDEO_SCHEDULERS, "STRING", "INT",)
     RETURN_NAMES = ("scheduler", "scheduler_name", "current_index",)
@@ -111,26 +128,33 @@ class WanVideoSchedulerLoop:
 
     @classmethod
     def INPUT_TYPES(cls):
+        # Generate individual skip options for each scheduler
+        skip_inputs = {}
+        for scheduler in WANVIDEO_SCHEDULERS:
+            skip_inputs[f"skip_{scheduler.replace('/', '_').replace('+', 'plus')}"] = ("BOOLEAN", {"default": False})
+        
         return {
             "required": {
                 "mode": (["sequential", "random", "ping_pong"],),
-                "step": ("INT", {"default": 0, "min": 0, "max": 1000}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-            },
-            "optional": {
                 "reset": ("BOOLEAN", {"default": False}),
-                "skip_schedulers": ("STRING", {"default": "", "multiline": False}),
-            }
+            },
+            "optional": skip_inputs
         }
 
-    def loop_scheduler(self, mode, step, seed, reset=False, skip_schedulers=""):
+    def loop_scheduler(self, mode, seed, reset=False, **kwargs):
         """
-        Advanced scheduler looping with different patterns
+        Advanced scheduler looping with automatic state management
         """
-        # Parse skip list
+        import threading
+        import time
+        
+        # Parse skip list from boolean inputs
         skip_list = []
-        if skip_schedulers.strip():
-            skip_list = [s.strip() for s in skip_schedulers.split(",")]
+        for scheduler in WANVIDEO_SCHEDULERS:
+            skip_key = f"skip_{scheduler.replace('/', '_').replace('+', 'plus')}"
+            if kwargs.get(skip_key, False):
+                skip_list.append(scheduler)
         
         # Filter schedulers
         available_schedulers = [s for s in WANVIDEO_SCHEDULERS if s not in skip_list]
@@ -138,8 +162,27 @@ class WanVideoSchedulerLoop:
         if not available_schedulers:
             available_schedulers = WANVIDEO_SCHEDULERS
         
+        # Reset counter if requested
+        if reset:
+            WanVideoSchedulerLoop._global_counters[mode] = 0
+            print(f"WanVideo Scheduler Loop: {mode} counter reset to 0")
+        
+        # Create a unique execution identifier (timestamp + thread + mode)
+        current_execution_id = f"{time.time()}_{threading.current_thread().ident}_{mode}"
+        
+        # Only increment if this is a new execution
+        if WanVideoSchedulerLoop._last_execution_ids[mode] != current_execution_id:
+            WanVideoSchedulerLoop._last_execution_ids[mode] = current_execution_id
+            # Don't increment on first call
+            if WanVideoSchedulerLoop._global_counters[mode] > 0 or hasattr(self, f'_first_call_done_{mode}'):
+                WanVideoSchedulerLoop._global_counters[mode] += 1
+            else:
+                setattr(self, f'_first_call_done_{mode}', True)
+        
+        step = WanVideoSchedulerLoop._global_counters[mode]
+        
         if mode == "sequential":
-            # Sequential loop through schedulers
+            # Sequential loop through schedulers (cycles back to first when complete)
             index = step % len(available_schedulers)
             selected_scheduler = available_schedulers[index]
             
@@ -169,8 +212,10 @@ class WanVideoSchedulerLoop:
             index = 0
             selected_scheduler = available_schedulers[0]
         
+        # Log current selection for debugging
+        print(f"WanVideo Scheduler Loop: Selected '{selected_scheduler}' (index: {index}, step: {step}, mode: {mode}) [Global: {WanVideoSchedulerLoop._global_counters[mode]}]")
+        
         return (selected_scheduler, selected_scheduler, index)
-
 
 class WanVideoSchedulerInfo:
     """
@@ -211,15 +256,15 @@ class WanVideoSchedulerInfo:
 
 # Node class mappings for ComfyUI
 NODE_CLASS_MAPPINGS = {
-    "WanVideoSchedulerSelector": WanVideoSchedulerSelector,
+    # "WanVideoSchedulerSelector": WanVideoSchedulerSelector,
     "WanVideoSchedulerLoop": WanVideoSchedulerLoop,
-    "WanVideoSchedulerInfo": WanVideoSchedulerInfo,
+    "WanVideoSchedulerInfo": WanVideoSchedulerInfo
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "WanVideoSchedulerSelector": "WanVideo Scheduler Selector",
+    # "WanVideoSchedulerSelector": "WanVideo Scheduler Selector",
     "WanVideoSchedulerLoop": "WanVideo Scheduler Loop",
-    "WanVideoSchedulerInfo": "WanVideo Scheduler Info",
+    "WanVideoSchedulerInfo": "WanVideo Scheduler Info"
 }
 
 # Export for ComfyUI
