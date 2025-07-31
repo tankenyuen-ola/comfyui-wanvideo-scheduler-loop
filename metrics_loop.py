@@ -442,8 +442,8 @@ class WanVideoAllParametersLoop:
     _global_counters = {"sequential": 0, "ping_pong": 0, "random": 0}
     _last_execution_ids = {"sequential": None, "ping_pong": None, "random": None}
     
-    RETURN_TYPES = (WANVIDEO_SCHEDULERS, "INT", "FLOAT", "FLOAT", "INT", "INT")
-    RETURN_NAMES = ("scheduler", "steps", "cfg", "shift", "current_index", "total_combinations")
+    RETURN_TYPES = ("INT", "FLOAT", "FLOAT", WANVIDEO_SCHEDULERS, "INT", "INT")
+    RETURN_NAMES = ("steps", "cfg", "shift", "scheduler","current_index", "total_combinations")
     FUNCTION = "loop_all_parameters"
     CATEGORY = "WanVideo/AllParameters"
 
@@ -617,7 +617,7 @@ class WanVideoAllParametersLoop:
         print(f"  Available steps values: {steps_values}")
         print(f"  Total combinations: {total_combinations}")
         
-        return (selected_scheduler, selected_cfg, selected_shift, selected_steps, index, total_combinations)
+        return (selected_cfg, selected_shift, selected_steps, selected_scheduler, index, total_combinations)
 
 
 # Node class mappings for ComfyUI
