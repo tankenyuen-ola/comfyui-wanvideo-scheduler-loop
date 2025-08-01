@@ -18,7 +18,7 @@ Special thanks to [ComfyUI-WanVideoWrapper](https://github.com/kijai/ComfyUI-Wan
 1. Clone this repository into your ComfyUI custom nodes directory:
 ```bash
 cd ComfyUI/custom_nodes/
-git clone https://github.com/yourusername/comfyui-wanvideo-schedulerloop.git
+git clone https://github.com/tankenyuen-ola/comfyui-wanvideo-schedulerloop.git
 ```
 
 2. Restart ComfyUI
