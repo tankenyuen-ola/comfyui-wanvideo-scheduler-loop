@@ -72,8 +72,8 @@ class WanVideoSchedulerLoop:
     _global_counters = {"sequential": 0, "ping_pong": 0, "random": 0}
     _last_execution_ids = {"sequential": None, "ping_pong": None, "random": None}
     
-    RETURN_TYPES = (WANVIDEO_SCHEDULERS, "STRING", "INT", "INT")
-    RETURN_NAMES = ("scheduler", "scheduler_name", "current_index", "total_combinations")
+    RETURN_TYPES = (WANVIDEO_SCHEDULERS, "STRING", "INT", "INT", "STRING")
+    RETURN_NAMES = ("scheduler", "scheduler_name", "current_index", "total_combinations", "current_combination")
     FUNCTION = "loop_scheduler"
     CATEGORY = "WanVideo/Schedulers"
 
@@ -163,11 +163,12 @@ class WanVideoSchedulerLoop:
             # Fallback
             index = 0
             selected_scheduler = available_schedulers[0]
-        
+
+        current_combination = f"Scheduler: {selected_scheduler}"
         # Log current selection for debugging
         print(f"WanVideo Scheduler Loop: Selected '{selected_scheduler}' (index: {index}, step: {step}, mode: {mode}) [Global: {WanVideoSchedulerLoop._global_counters[mode]}]")
         
-        return (selected_scheduler, selected_scheduler, index, total_combinations)
+        return (selected_scheduler, selected_scheduler, index, total_combinations, current_combination)
 
 class WanVideoSchedulerInfo:
     """
@@ -214,8 +215,8 @@ class FloatRangeLoop:
     _global_counter = 0
     _last_execution_id = None
     
-    RETURN_TYPES = ("FLOAT", "FLOAT", "INT", "INT",)
-    RETURN_NAMES = ("cfg", "shift", "current_index", "total_combinations",)
+    RETURN_TYPES = ("FLOAT", "FLOAT", "INT", "INT", "STRING")
+    RETURN_NAMES = ("cfg", "shift", "current_index", "total_combinations", "current_combination")
     FUNCTION = "loop_floats"
     CATEGORY = "WanVideo/FloatRange"
 
@@ -289,6 +290,8 @@ class FloatRangeLoop:
         
         selected_cfg = cfg_values[cfg_index]
         selected_shift = shift_values[shift_index]
+
+        current_combination = f"CFG {selected_cfg:.2f}, Shift {selected_shift:.2f}"
         
         # Log current selection for debugging
         print(f"FloatRange Loop: Selected cfg={selected_cfg}, shift={selected_shift} (index: {index}, step: {step}) [Global: {FloatRangeLoop._global_counter}]")
@@ -296,7 +299,7 @@ class FloatRangeLoop:
         print(f"  Available shift values: {shift_values}")
         print(f"  Total combinations: {total_combinations}")
         
-        return (selected_cfg, selected_shift, index, total_combinations)
+        return (selected_cfg, selected_shift, index, total_combinations, current_combination)
 
 class ParametersRangeLoop:
     """
@@ -307,8 +310,8 @@ class ParametersRangeLoop:
     _global_counter = 0
     _last_execution_id = None
     
-    RETURN_TYPES = ("INT", "FLOAT", "FLOAT", "INT", "INT")
-    RETURN_NAMES = ("steps", "cfg", "shift" , "current_index", "total_combinations")
+    RETURN_TYPES = ("INT", "FLOAT", "FLOAT", "INT", "INT", "STRING")
+    RETURN_NAMES = ("steps", "cfg", "shift" , "current_index", "total_combinations", "current_combination")
     FUNCTION = "loop_parameters"
     CATEGORY = "WanVideo/ParametersRange"
 
@@ -422,6 +425,8 @@ class ParametersRangeLoop:
         selected_cfg = cfg_values[cfg_index]
         selected_shift = shift_values[shift_index]
         selected_steps = steps_values[steps_index]
+
+        current_combination = f"{selected_steps} steps, CFG {selected_cfg:.2f}, Shift {selected_shift:.2f}"
         
         # Log current selection for debugging
         print(f"Parameters Range Loop: Selected steps={selected_steps}, cfg={selected_cfg}, shift={selected_shift} (index: {index}, step: {step}) [Global: {ParametersRangeLoop._global_counter}]")
@@ -430,7 +435,7 @@ class ParametersRangeLoop:
         print(f"  Available steps values: {steps_values}")
         print(f"  Total combinations: {total_combinations}")
         
-        return (selected_steps, selected_cfg, selected_shift, index, total_combinations)
+        return (selected_steps, selected_cfg, selected_shift, index, total_combinations, current_combination)
 
 class WanVideoAllParametersLoop:
     """
@@ -442,8 +447,8 @@ class WanVideoAllParametersLoop:
     _global_counters = {"sequential": 0, "ping_pong": 0, "random": 0}
     _last_execution_ids = {"sequential": None, "ping_pong": None, "random": None}
     
-    RETURN_TYPES = ("INT", "FLOAT", "FLOAT", WANVIDEO_SCHEDULERS, "INT", "INT")
-    RETURN_NAMES = ("steps", "cfg", "shift", "scheduler","current_index", "total_combinations")
+    RETURN_TYPES = ("INT", "FLOAT", "FLOAT", WANVIDEO_SCHEDULERS, "INT", "INT", "STRING")
+    RETURN_NAMES = ("steps", "cfg", "shift", "scheduler","current_index", "total_combinations", "current_combination")
     FUNCTION = "loop_all_parameters"
     CATEGORY = "WanVideo/AllParameters"
 
@@ -608,6 +613,8 @@ class WanVideoAllParametersLoop:
         selected_cfg = cfg_values[cfg_index]
         selected_shift = shift_values[shift_index]
         selected_steps = steps_values[steps_index]
+
+        current_combination = f"Scheduler: {selected_scheduler}, {selected_steps} steps, CFG {selected_cfg:.2f}, Shift {selected_shift:.2f}"
         
         # Log current selection for debugging
         print(f"WanVideo All Parameters Loop: Selected scheduler='{selected_scheduler}', cfg={selected_cfg}, shift={selected_shift}, steps={selected_steps} (index: {index}, step: {step}, mode: {mode}) [Global: {WanVideoAllParametersLoop._global_counters[mode]}]")
@@ -617,7 +624,7 @@ class WanVideoAllParametersLoop:
         print(f"  Available steps values: {steps_values}")
         print(f"  Total combinations: {total_combinations}")
         
-        return (selected_cfg, selected_shift, selected_steps, selected_scheduler, index, total_combinations)
+        return (selected_cfg, selected_shift, selected_steps, selected_scheduler, index, total_combinations, current_combination)
 
 
 # Node class mappings for ComfyUI
