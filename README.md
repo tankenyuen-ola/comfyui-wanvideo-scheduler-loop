@@ -39,6 +39,7 @@ This extension automates the entire process by:
 - **Providing multiple looping modes (sequential, random, ping-pong)**
 - **Offering granular control over parameter ranges**
 - **Enabling skip functionality for unwanted schedulers**
+- **Generating descriptive tags for easy result organization**
 
 ## 🔧 Available Nodes
 
@@ -61,13 +62,15 @@ Automatically cycles through different WanVideo schedulers with various looping 
 - **scheduler_name**: String representation of the scheduler name
 - **current_index**: Current position in the scheduler list (0-based)
 - **total_combinations**: Total number of available schedulers (excluding skipped ones)
+- **current_combination**: Descriptive string of current scheduler selection (e.g., "Scheduler: dpm++")
 
 #### Usage Example:
 1. Set mode to "sequential" for systematic testing
 2. Connect **scheduler** output to your WanVideo sampler node
-3. Enable batch processing in ComfyUI
-4. Set batch count to **total_combinations** value
-5. Run to test all schedulers automatically
+3. Connect **current_combination** output to filename prefix or save metadata for easy identification
+4. Enable batch processing in ComfyUI
+5. Set batch count to **total_combinations** value
+6. Run to test all schedulers automatically
 
 ---
 
@@ -107,11 +110,14 @@ Cycles through combinations of CFG and shift parameter ranges.
 - **shift**: Current shift value  
 - **current_index**: Current combination index
 - **total_combinations**: Total number of CFG×shift combinations
+- **current_combination**: Descriptive string of current parameters (e.g., "CFG 4.0, Shift 1.5")
 
 #### Usage Example:
 Test CFG values from 1.0 to 8.0 (step 1.0) and shift from 1.0 to 3.0 (step 0.5):
 - This creates 8 CFG values × 5 shift values = 40 total combinations
+- Connect **current_combination** to your save node's filename prefix
 - Set batch count to 40 and run to test all combinations
+- Each saved file will be automatically tagged with its parameter combination
 
 ---
 
@@ -133,6 +139,7 @@ Cycles through combinations of steps, CFG, and shift parameters.
 - **shift**: Current shift value
 - **current_index**: Current combination index  
 - **total_combinations**: Total number of steps×CFG×shift combinations
+- **current_combination**: Descriptive string of current parameters (e.g., "30 steps, CFG 4.0, Shift 1.5")
 
 #### Usage Example:
 Test comprehensive parameter combinations:
@@ -140,6 +147,7 @@ Test comprehensive parameter combinations:
 - CFG: 1.0, 2.0, 3.0, 4.0 (4 values)  
 - Shift: 1.0, 1.5, 2.0 (3 values)
 - Total: 4×4×3 = 48 combinations
+- Use **current_combination** for organized file naming and easy result tracking
 
 ---
 
@@ -164,6 +172,7 @@ The ultimate testing node - combines scheduler selection with parameter ranges f
 - **scheduler**: Current scheduler name
 - **current_index**: Current combination index
 - **total_combinations**: Total number of all possible combinations
+- **current_combination**: Comprehensive descriptive string (e.g., "Scheduler: dpm++, 30 steps, CFG 4.0, Shift 1.5")
 
 #### Usage Example:
 Ultimate parameter optimization setup:
@@ -171,8 +180,9 @@ Ultimate parameter optimization setup:
 2. Skip unwanted schedulers using the boolean toggles
 3. Choose "sequential" mode for systematic testing
 4. Connect outputs to corresponding WanVideo node inputs
-5. Set batch count to **total_combinations** value
-6. Run batch to test every possible combination automatically
+5. Connect **current_combination** to save node for automatic file tagging
+6. Set batch count to **total_combinations** value
+7. Run batch to test every possible combination automatically
 
 **Example calculation:**
 - 3 schedulers (after skipping unwanted ones)
@@ -188,9 +198,11 @@ Ultimate parameter optimization setup:
 2. Set mode to "sequential"
 3. Skip any problematic schedulers using the boolean inputs
 4. Connect **scheduler** output to your WanVideo sampler
-5. Note the **total_combinations** value
-6. Set ComfyUI batch count to this number
-7. Queue batch and let it run through all schedulers
+5. Connect **current_combination** to save node filename prefix
+6. Note the **total_combinations** value
+7. Set ComfyUI batch count to this number
+8. Queue batch and let it run through all schedulers
+9. Each output file will be automatically named with the scheduler used
 
 ### For Parameter Optimization:
 1. Add **WanVideo All Parameters Loop** node
@@ -200,13 +212,39 @@ Ultimate parameter optimization setup:
    - **Shift:** 1.0-3.0, interval 0.5 (5 values)
 3. Skip unwanted schedulers
 4. Connect all outputs to corresponding WanVideo inputs
-5. Set batch count to **total_combinations** (160 in this example)
-6. Run batch for comprehensive testing
+5. Connect **current_combination** to save node for descriptive filenames
+6. Set batch count to **total_combinations** (160 in this example)
+7. Run batch for comprehensive testing
+8. Results will be saved with descriptive names like "Scheduler_dpm++_30steps_CFG4.0_Shift1.5.mp4"
 
 ### For Quick Range Testing:
 1. Use **Float Range Loop** for just CFG and shift testing
 2. Use **Parameters Range Loop** for steps, CFG, and shift testing
 3. Smaller combination counts = faster testing
+4. Always connect **current_combination** for easy result identification
+
+## 📂 Organizing Results with current_combination
+
+The **current_combination** output is specifically designed to help you organize and identify your test results:
+
+### File Naming Examples:
+- **Scheduler Loop**: "Scheduler_dpm++"
+- **Float Range Loop**: "CFG_4.0_Shift_1.5"  
+- **Parameters Range Loop**: "30steps_CFG_4.0_Shift_1.5"
+- **All Parameters Loop**: "Scheduler_dpm++_30steps_CFG_4.0_Shift_1.5"
+
+### Best Practices for File Organization:
+1. **Connect to filename prefix**: Use **current_combination** as a prefix to your base filename
+2. **Create result folders**: Organize by test session using folder names with timestamps
+3. **Use metadata**: Some save nodes support metadata - **current_combination** can be stored there too
+4. **Batch comparison**: With descriptive names, you can easily compare results side-by-side
+5. **Result analysis**: Sort files alphabetically to group similar parameter combinations
+
+### Example Save Node Setup:
+```
+[WanVideo All Parameters Loop] → current_combination → [Text Concatenate] → "TestBatch_" + current_combination + "_" + timestamp → [Save Video]
+```
+This creates filenames like: `TestBatch_Scheduler_dpm++_30steps_CFG_4.0_Shift_1.5_20240102_143052.mp4`
 
 ## 🔍 Tips & Best Practices
 
@@ -219,6 +257,7 @@ Ultimate parameter optimization setup:
 - Start with wide parameter ranges and fewer steps to identify promising areas
 - Use scheduler skipping to focus on schedulers that work well with your content
 - Monitor the console output - each node logs its current selection for debugging
+- Always use **current_combination** for result organization - it saves hours of manual sorting
 
 ### Console Output Example:
 ```
@@ -230,10 +269,18 @@ WanVideo All Parameters Loop: Selected scheduler='dpm++', cfg=4.0, shift=1.5, st
   Total combinations: 60
 ```
 
+### Result Analysis Workflow:
+1. Run batch with **current_combination** connected to filename
+2. Review generated files - names indicate exact parameters used
+3. Identify best-performing combinations from filenames
+4. Use those parameters for fine-tuning with smaller ranges
+5. Create focused test batches around optimal settings
+
 ### Error Prevention:
 - The nodes automatically handle cases where start > end values
 - Warnings are displayed in console for invalid ranges
 - Fallback values are used when necessary
+- **current_combination** always provides valid output even with edge cases
 
 ## 🐛 Troubleshooting
 
@@ -253,6 +300,12 @@ WanVideo All Parameters Loop: Selected scheduler='dpm++', cfg=4.0, shift=1.5, st
 **Floating point precision issues**
 - The nodes automatically handle floating point rounding
 - Check console output to verify the actual values being generated
+- **current_combination** shows the exact values being used
+
+**File naming issues**
+- Ensure **current_combination** is properly connected to your save node
+- Some characters in scheduler names (like "/", "+") are automatically handled
+- Check your save node's filename formatting requirements
 
 ## 📝 License
 
